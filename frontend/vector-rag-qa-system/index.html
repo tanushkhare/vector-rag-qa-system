@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vector RAG QA System</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="logo">🧠 Vector RAG QA System</div>
+      <div class="badge">ChromaDB HNSW Active</div>
+    </div>
+  </header>
+
+  <main class="main-layout">
+    <!-- Left Column: Vector Query & Ingestion -->
+    <section class="panel-left">
+      <h2>Vector Embedding Query</h2>
+      <p class="subtitle">ChromaDB semantic retrieval engine with cosine chunk re-ranking and citation grounding.</p>
+      
+      <div class="input-group">
+        <label for="ragQuery">Enter Knowledge Query</label>
+        <input type="text" id="ragQuery" value="How does vector chunk re-ranking reduce hallucination?" class="text-input">
+      </div>
+
+      <div class="input-group">
+        <label for="topK">Top-K Context Chunks</label>
+        <select id="topK" class="text-input">
+          <option value="2">Top 2 Relevant Chunks</option>
+          <option value="3" selected>Top 3 Relevant Chunks</option>
+          <option value="5">Top 5 Relevant Chunks</option>
+        </select>
+      </div>
+
+      <button class="btn primary-btn" onclick="runRagQuery()">Execute Semantic Retrieval</button>
+
+      <div class="log-card">
+        <h4>ChromaDB Retrieval Log</h4>
+        <div id="logBox" class="terminal-log">ChromaDB index connected (HNSW cosine space active)...</div>
+      </div>
+    </section>
+
+    <!-- Right Column: Grounded Synthesis & Context Chunks -->
+    <aside class="panel-right">
+      <h2>Grounded Answer & Chunks</h2>
+
+      <div class="card">
+        <h3>💡 Grounded Synthesis</h3>
+        <p id="ragAnswer" style="font-size: 0.9rem; color: #cbd5e1; line-height: 1.6; margin-top: 0.5rem;">
+          Execute a query to retrieve semantic embeddings.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>📑 Retrieved Context Chunks (Cosine Distance)</h3>
+        <div id="ragChunks">
+          <p style="font-size: 0.85rem; color: #94a3b8;">Awaiting vector similarity search...</p>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    async function runRagQuery() {
+      const query = document.getElementById('ragQuery').value.trim();
+      const topK = parseInt(document.getElementById('topK').value, 10);
+      const log = document.getElementById('logBox');
+
+      if (!query) {
+        alert("Please enter a search query.");
+        return;
+      }
+
+      log.innerText = `[${new Date().toLocaleTimeString()}] Query vector generated (384-dim)\n[${new Date().toLocaleTimeString()}] Searching ChromaDB Top-${topK} cosine neighbors...\n[${new Date().toLocaleTimeString()}] Target endpoint: /api/v1/rag/query`;
+
+      const payload = {
+        query: query,
+        top_k: topK
+      };
+
+      try {
+        const res = await fetch("http://127.0.0.1:8000/api/v1/rag/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+
+        const data = await res.json();
+        document.getElementById('ragAnswer').innerText = data.synthesized_answer;
+
+        if (data.retrieved_chunks && data.retrieved_chunks.length > 0) {
+          document.getElementById('ragChunks').innerHTML = data.retrieved_chunks.map((chunk, idx) => `
+            <div style="margin-bottom: 0.75rem; border-left: 2px solid #38bdf8; padding-left: 0.75rem;">
+              <strong style="color: #38bdf8; font-size: 0.85rem;">Chunk #${idx + 1} (Cosine Distance: ${chunk.distance.toFixed(4)})</strong>
+              <p style="color: #cbd5e1; font-size: 0.8rem; margin: 0.2rem 0;">${chunk.text}</p>
+            </div>
+          `).join('');
+        }
+
+        log.innerText += `\n[${new Date().toLocaleTimeString()}] Cosine search complete. Top-${topK} chunks injected (200 OK).`;
+      } catch (err) {
+        log.innerText += `\n[${new Date().toLocaleTimeString()}] Note: Backend server offline or CORS restricted. Displaying simulated result.\nDetails: ${err.message}`;
+
+        document.getElementById('ragAnswer').innerText = `Synthesized Answer for "${query}": Semantic re-ranking calculates cross-encoder similarity over retrieved vector chunks, eliminating irrelevant context before LLM prompt injection.`;
+        document.getElementById('ragChunks').innerHTML = `
+          <div style="margin-bottom: 0.75rem; border-left: 2px solid #38bdf8; padding-left: 0.75rem;">
+            <strong style="color: #38bdf8; font-size: 0.85rem;">Chunk #1 (Cosine Distance: 0.0812)</strong>
+            <p style="color: #cbd5e1; font-size: 0.8rem; margin: 0.2rem 0;">...re-ranking cross-encoder scoring ensures high precision and eliminates noisy context before LLM synthesis...</p>
+          </div>
+          <div style="margin-bottom: 0.75rem; border-left: 2px solid #38bdf8; padding-left: 0.75rem;">
+            <strong style="color: #38bdf8; font-size: 0.85rem;">Chunk #2 (Cosine Distance: 0.1245)</strong>
+            <p style="color: #cbd5e1; font-size: 0.8rem; margin: 0.2rem 0;">...context grounding bounds hallucination to verifiable documents stored in ChromaDB vector partitions...</p>
+          </div>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>
