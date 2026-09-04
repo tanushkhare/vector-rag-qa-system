@@ -1,3 +1,13 @@
-﻿# Vector RAG QA System
+# ⚡ project_03_vector_rag_qa_system
 
-High-performance document retrieval and generation engine using ChromaDB and Sentence-Transformers.
+[Live Showcase Hub](https://portfolio-showcase-hub-web11.vercel.app)
+
+---
+
+## 📌 Overview
+Production microservice verified with automated CI/CD and pytest suites.
+
+```bash
+pip install -r requirements.txt
+pytest tests/ -v
+```
